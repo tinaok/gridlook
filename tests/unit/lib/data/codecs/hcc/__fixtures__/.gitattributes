@@ -1,0 +1,6 @@
+# test vectors and Zarr chunks: raw bytes, never line-ending converted
+*.stream binary
+*.u16 binary
+*.f32 binary
+*.f64 binary
+store_L12/**/c/* binary
