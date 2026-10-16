@@ -27,6 +27,8 @@ model (ESM) output on native grids.
   required by live mode.
 - [CORS and data hosting](../README.md#cors--hosting-notes) — browser access
   requirements and a header check.
+- [Compression codecs](codecs.md) — the codecs Gridlook decodes beyond
+  zarrita's own, such as the healpix-compress Sentinel-2 codecs.
 
 ## Capabilities
 
