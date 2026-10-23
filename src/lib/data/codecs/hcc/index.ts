@@ -4,7 +4,7 @@
  * quantised children) and `hcc-sentinel2` (lossless digital numbers), both
  * JPEG XL based, decode-only. `src/lib/data/codecs.ts` registers them.
  *
- * Reference implementation: https://github.com/jmdelouis/healpix-compress
+ * Reference implementation: https://github.com/GRID4EARTH/healpix-compress
  * (`hcc/compression/sentinel2_pyramid.py`, `hcc/compression/sentinel2.py`).
  */
 import type { Chunk, DataType } from "zarrita";

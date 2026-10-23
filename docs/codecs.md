@@ -8,7 +8,7 @@ on the main thread and in the workers that read data.
 
 The GRID4EARTH Sentinel-2 L2A HEALPix products store their reflectance bands
 with the Zarr v3 serializers of
-[healpix-compress](https://github.com/jmdelouis/healpix-compress):
+[healpix-compress](https://github.com/GRID4EARTH/healpix-compress):
 `hcc-sentinel2-pyramid` (lossy: the parent level as lossless digital numbers,
 the children predicted from it plus a quantised detail, all JPEG XL coded) and
 `hcc-sentinel2` (lossless digital numbers in JPEG XL). Their decoders are in
