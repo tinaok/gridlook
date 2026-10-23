@@ -416,7 +416,11 @@ async function fetchInfo(requestId: number) {
     }
     groupAttrsChain.value = groupChain;
     groupAttrs.value = groupChain[0]?.attrs ?? null;
-    const variable = await ZarrDataManager.getVariableInfo(varSource, varname);
+    const variable = await ZarrDataManager.getVariableInfo(
+      varSource,
+      varname,
+      props.datasources.zarr_format
+    );
     if (requestId !== infoRequestId || varname !== sourceVariable.value) {
       return;
     }
