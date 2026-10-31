@@ -67,6 +67,7 @@ import {
   decodeHealpixFaceXY,
   getHealpixFaceDataRect,
   getHealpixFaceRange,
+  healpixCellCoordinateNames,
   type THealpixDataRect,
 } from "@/lib/grids/healpixCalculations.ts";
 import {
@@ -444,21 +445,28 @@ function unpackGrid(): healpixGeo.Grid {
   return grid as healpixGeo.Grid;
 }
 
+/**
+ * The name of the level's cell-id coordinate: the one the dggs convention
+ * names, else the first of "cell" and "cell_ids" (the xdggs default) that
+ * the level holds, else "cell".
+ */
 async function getCellCoordinateName(sources = props.datasources!) {
-  let cellCoord = "cell";
-  const dggsMetadata = await ZarrDataManager.getDggsMetadata(
-    sources,
-    levelVariable(sources)
-  );
-  if (dggsMetadata !== null) {
-    const coordinate = dggsMetadata["coordinate"];
-    if (coordinate) {
-      cellCoord = coordinate;
+  const variable = levelVariable(sources);
+  const dggsMetadata = await ZarrDataManager.getDggsMetadata(sources, variable);
+  const names = healpixCellCoordinateNames(dggsMetadata?.["coordinate"]);
+  for (const name of names) {
+    const found = await ZarrDataManager.getVariableInfoByDatasetSources(
+      sources,
+      ZarrDataManager.resolveVariablePath(variable, name)
+    ).then(
+      () => true,
+      () => false
+    );
+    if (found) {
+      return name;
     }
-  } else {
-    // no dggs metadata found, continue with the default cell coordinate
   }
-  return cellCoord as string;
+  return names[0];
 }
 
 // The cells of levels whose coordinate is compressed, read once: it holds one
