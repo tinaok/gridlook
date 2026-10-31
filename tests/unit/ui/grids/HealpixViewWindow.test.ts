@@ -39,7 +39,7 @@ const cellCount = ({ level, cells }: TStoredLevel) =>
 
 function describeArray({ dataset }: TSource, variable: string) {
   const level = stored[dataset];
-  if (variable === "cell") {
+  if (variable === "cell" || variable === "cell_ids") {
     if (!level.cells) {
       throw new Error("no cell coordinate");
     }
