@@ -38,8 +38,6 @@ stores, Icechunk repositories, Kerchunk reference files and NetCDF files.
   discovered and picked from the camera.
 - [CORS and data hosting](../README.md#cors--hosting-notes) — browser access
   requirements and a header check.
-- [Compression codecs](codecs.md) — the codecs Gridlook decodes beyond
-  zarrita's own, such as the healpix-compress Sentinel-2 codecs.
 
 ## Capabilities
 
