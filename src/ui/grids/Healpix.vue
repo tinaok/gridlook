@@ -666,7 +666,8 @@ async function prepareLevel() {
 /** The stored cells with ids in a nested range, and their values. */
 async function fetchCellRange(
   range: { start: number; end: number },
-  indices: (number | zarr.Slice | null)[]
+  indices: (number | zarr.Slice | null)[],
+  variable?: string
 ) {
   // Dense levels store cell `n` at index `n`; sparse ones are searched.
   const start = sortedCells
@@ -685,7 +686,9 @@ async function fetchCellRange(
     throw new Error("The cell coordinate is not in ascending order.");
   }
   return {
-    data: castDataVarToFloat32(await fetchHealpixVariableData(selection)),
+    data: castDataVarToFloat32(
+      await fetchHealpixVariableData(selection, variable)
+    ),
     cells,
   };
 }
@@ -694,7 +697,8 @@ async function fetchCellRange(
 async function fetchFaceBlocks(
   faceIndex: number,
   grid: healpixGeo.Grid,
-  indices: (number | zarr.Slice | null)[]
+  indices: (number | zarr.Slice | null)[],
+  variable?: string
 ) {
   const blockLevel = healpixBlockLevel(grid.level);
   const ranges = healpixBlockRanges(
@@ -704,7 +708,7 @@ async function fetchFaceBlocks(
     4 ** (grid.level - blockLevel)
   );
   const parts = await Promise.all(
-    ranges.map((range) => fetchCellRange(range, indices))
+    ranges.map((range) => fetchCellRange(range, indices, variable))
   );
   let length = 0;
   for (const part of parts) {
@@ -1277,7 +1281,8 @@ function showBackdrop(frame: TBackdropFrame | undefined) {
 }
 
 // Reads the three channels face by face and draws them over the faces of the
-// data grid, which are already meshed for the current selection.
+// data grid, which are already meshed for the current selection. When the
+// level is loaded by view, only the blocks the data grid holds are read.
 async function loadRgbComposite(request: TRgbRequest) {
   const context = lastStreamlineContext;
   const datavar = lastDatavar;
@@ -1296,13 +1301,13 @@ async function loadRgbComposite(request: TRgbRequest) {
     }
     const textures = await Promise.all(
       reads.map(async (read) => {
-        const data = await readRgbFaceChannel(read, range);
+        const data = await readRgbFaceChannel(read, faceIndex, grid, range);
         bounds.push(data.bounds);
         return buildHealpixTexture(
           data.values,
           faceIndex,
           grid.nside,
-          range.cells
+          data.cells
         );
       })
     );
@@ -1326,13 +1331,28 @@ async function loadRgbComposite(request: TRgbRequest) {
 
 async function readRgbFaceChannel(
   read: TRgbChannelRead,
-  range: { start: number; end: number }
+  faceIndex: number,
+  grid: healpixGeo.Grid,
+  range: { start: number; end: number; cells?: number[] }
 ) {
-  const selection = read.selection.slice();
-  selection[selection.length - 1] = zarr.slice(range.start, range.end);
-  const values = castDataVarToFloat32(
-    await fetchHealpixVariableData(selection, read.variable)
-  );
+  let values: Float32Array;
+  let cells = range.cells;
+  if (loadedBlocks !== undefined) {
+    const face = await fetchFaceBlocks(
+      faceIndex,
+      grid,
+      read.selection,
+      read.variable
+    );
+    values = face.data;
+    cells = face.cells;
+  } else {
+    const selection = read.selection.slice();
+    selection[selection.length - 1] = zarr.slice(range.start, range.end);
+    values = castDataVarToFloat32(
+      await fetchHealpixVariableData(selection, read.variable)
+    );
+  }
   const { missingValue, fillValue } = getHealpixMissingAndFillValues(
     read.datavar
   );
@@ -1342,7 +1362,7 @@ async function readRgbFaceChannel(
     missingValue,
     fillValue
   );
-  return { values, bounds };
+  return { values, bounds, cells };
 }
 
 function openRgbVariable(variable: string) {
@@ -1531,6 +1551,7 @@ async function fetchAndRenderData(
       dimInfo,
       varname: levelVariable(props.datasources!),
       vars: currentLevel(props.datasources!).datasources,
+      region: loadedBlocks?.join(","),
     });
   }
 }

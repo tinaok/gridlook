@@ -77,6 +77,8 @@ type TRgbContext = {
   // the variable the grid shows and the variables next to it
   varname: string;
   vars: Record<string, TDataSource>;
+  // the part of the grid the data grid loaded, when it loads by view
+  region?: string;
 };
 
 type TDataVar = zarr.Array<zarr.DataType, zarr.AsyncReadable>;
@@ -288,7 +290,11 @@ export function useRgbLayer(options: TOptions) {
     if (!variables) {
       return undefined;
     }
-    const key = JSON.stringify({ indices: current.indices, variables });
+    const key = JSON.stringify({
+      indices: current.indices,
+      variables,
+      region: current.region,
+    });
     return { variables, indices: current.indices, key };
   }
 
@@ -310,7 +316,13 @@ export function useRgbLayer(options: TOptions) {
     // The RGB dimension's own slider does not select what is shown.
     const indices = current.indices.slice();
     indices[option.index] = null;
-    const key = JSON.stringify({ indices, dimension: option.index, channels });
+    const key = JSON.stringify({
+      indices,
+      dimension: option.index,
+      channels,
+      varname: current.varname,
+      region: current.region,
+    });
     return { dimensionIndex: option.index, channels, indices, key };
   }
 
