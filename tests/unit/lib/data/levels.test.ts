@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   CAMERA_VERTICAL_FOV_DEGREES,
@@ -20,6 +20,7 @@ import {
   levelRangeOrigin,
   sharedLevelRange,
   selectLevel,
+  setLevelQuality,
   sumsOverCells,
   type TLevelSelectionCamera,
   variableOnLevel,
@@ -52,6 +53,9 @@ function cameraFor(targetMeters: number): TLevelSelectionCamera {
 const LADDER = [10, 9, 8, 7, 6, 5, 4].map(healpixLevel);
 const ORDER_8 = 2;
 const ORDER_7 = 3;
+
+// the cases below are written for the standard 16 px per cell
+beforeEach(() => setLevelQuality("standard"));
 
 describe("currentLevel", () => {
   const sources: TSources = {
@@ -165,6 +169,24 @@ describe("selectLevel", () => {
         hysteresisOrders: 1,
       })
     ).toBe(ORDER_8);
+  });
+});
+
+describe("level quality", () => {
+  const scale = resolution(8) / DEFAULT_PIXELS_PER_CELL;
+
+  it("asks for smaller cells on a sharper quality", () => {
+    setLevelQuality("fast");
+    expect(selectLevel(scale, LADDER, ORDER_8)).toBe(ORDER_8 - 1);
+    setLevelQuality("sharp");
+    // 8 times smaller cells: three orders finer, clamped to the finest level
+    expect(selectLevel(scale, LADDER, ORDER_8)).toBe(0);
+  });
+
+  it("aims for 4 device pixels in auto, at least 2 CSS pixels", () => {
+    setLevelQuality("auto");
+    // jsdom/node: device pixel ratio 1 → 4 CSS px, two orders finer
+    expect(selectLevel(scale, LADDER, ORDER_8)).toBe(ORDER_8 - 2);
   });
 });
 

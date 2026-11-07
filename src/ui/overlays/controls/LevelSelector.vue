@@ -4,6 +4,8 @@ import { computed } from "vue";
 import {
   exceedsCellCap,
   hasLevels,
+  LEVEL_QUALITIES,
+  type TLevelQuality,
   levelHoldsVariable,
 } from "@/lib/data/levels.ts";
 import type { TSourceLevel } from "@/lib/types/GlobeTypes.ts";
@@ -56,6 +58,12 @@ function onAutoChange(event: Event) {
   store.setLevelAuto((event.target as HTMLInputElement).checked);
 }
 
+function onQualityChange(event: Event) {
+  store.setLevelQuality(
+    (event.target as HTMLSelectElement).value as TLevelQuality
+  );
+}
+
 function onWholeChange(event: Event) {
   store.setLevelWhole((event.target as HTMLInputElement).checked);
 }
@@ -106,6 +114,21 @@ function onRangeSharedChange(event: Event) {
           />
           Pick the level from the zoom
         </label>
+        <div class="select is-small is-fullwidth my-1">
+          <select
+            :value="store.levelQuality"
+            title="How fine the level picked from the zoom is"
+            @change="onQualityChange"
+          >
+            <option
+              v-for="quality in LEVEL_QUALITIES"
+              :key="quality.value"
+              :value="quality.value"
+            >
+              {{ quality.label }}
+            </option>
+          </select>
+        </div>
         <label
           class="checkbox is-size-7 is-block"
           title="Off: a large level loads only the part in view"
