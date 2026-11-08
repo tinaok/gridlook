@@ -225,7 +225,8 @@ const backdropMeshes: Array<THREE.Mesh | undefined> = new Array(
 
 // Per face, where the level shown has cells (see healpixFaceCover); the
 // backdrop is drawn only outside it.
-let levelCovers: Array<THREE.DataTexture | undefined> = [];
+let levelCovers: { texture: THREE.DataTexture; dataRect: THealpixDataRect }[] =
+  [];
 
 function drawnMeshes() {
   return [...backdropMeshes, ...mainMeshes];
@@ -1294,19 +1295,25 @@ function maskBackdrop() {
     const mesh = backdropMeshes[face];
     if (mesh) {
       const uniforms = (mesh.material as THREE.ShaderMaterial).uniforms;
-      uniforms.coverMask.value = levelCovers[face] ?? null;
-      uniforms.useCoverMask.value = levelCovers[face] ? 1 : 0;
+      const cover = levelCovers[face];
+      uniforms.coverMask.value = cover?.texture ?? null;
+      uniforms.useCoverMask.value = cover ? 1 : 0;
+      if (cover) {
+        const rect = cover.dataRect;
+        uniforms.coverUvOffset.value.set(rect.u, rect.v);
+        uniforms.coverUvScale.value.set(rect.width, rect.height);
+      }
     }
   }
 }
 
 function setLevelCovers(covers: ReturnType<typeof healpixFaceCover>[]) {
-  levelCovers.forEach((texture) => texture?.dispose());
-  levelCovers = covers.map(({ side, values }) => {
+  levelCovers.forEach(({ texture }) => texture.dispose());
+  levelCovers = covers.map(({ width, height, values, dataRect }) => {
     const texture = new THREE.DataTexture(
       values,
-      side,
-      side,
+      width,
+      height,
       THREE.RedFormat,
       THREE.UnsignedByteType
     );
@@ -1314,7 +1321,7 @@ function setLevelCovers(covers: ReturnType<typeof healpixFaceCover>[]) {
     texture.magFilter = THREE.NearestFilter;
     texture.unpackAlignment = 1;
     texture.needsUpdate = true;
-    return texture;
+    return { texture, dataRect };
   });
   maskBackdrop();
 }
@@ -1611,7 +1618,7 @@ onBeforeUnmount(() => {
     disposeHealpixMesh(ipix);
     disposeHealpixMesh(ipix, backdropMeshes);
   }
-  levelCovers.forEach((texture) => texture?.dispose());
+  levelCovers.forEach(({ texture }) => texture.dispose());
 });
 
 defineExpose({

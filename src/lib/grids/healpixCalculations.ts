@@ -163,13 +163,10 @@ export function decodeHealpixFaceXY(pixel: number) {
   return { x, y };
 }
 
-// The finest level the cover of a face (see healpixFaceCover) is kept at.
-const HEALPIX_COVER_MAX_LEVEL = 8;
-
 /**
- * Where on one face a level has cells, whatever their values: a square mask
- * of the face at level min(level, 8), 255 where a cell lies and 0 elsewhere,
- * one row per face y. Without cells the level is dense and covers the face.
+ * Exact cell presence, independent of values. Crop to the loaded cells'
+ * bounding box, like the data texture, so fine levels need no full-face mask.
+ * Without a cell coordinate the level is dense and covers the whole face.
  */
 export function healpixFaceCover(
   faceIndex: number,
@@ -177,25 +174,46 @@ export function healpixFaceCover(
   cells?: ArrayLike<number>
 ) {
   if (!cells) {
-    return { side: 1, values: Uint8Array.of(255) };
+    return {
+      width: 1,
+      height: 1,
+      values: Uint8Array.of(255),
+      dataRect: FULL_FACE,
+    };
   }
-  const coverLevel = Math.min(level, HEALPIX_COVER_MAX_LEVEL);
-  const side = 2 ** coverLevel;
-  const values = new Uint8Array(side * side);
-  const faceStart = faceIndex * 4 ** level;
-  const cellsPerMaskCell = 4 ** (level - coverLevel);
-  let last = -1;
+  const nside = 2 ** level;
+  const faceStart = faceIndex * nside * nside;
+  const bbox = getFaceCellBBox(cells, faceStart, faceStart + nside * nside);
+  if (!bbox) {
+    return {
+      width: 1,
+      height: 1,
+      values: Uint8Array.of(0),
+      dataRect: FULL_FACE,
+    };
+  }
+  const width = bbox.maxX - bbox.minX + 1;
+  const height = bbox.maxY - bbox.minY + 1;
+  const values = new Uint8Array(width * height);
   for (let index = 0; index < cells.length; index++) {
-    const maskCell = Math.floor((cells[index] - faceStart) / cellsPerMaskCell);
-    // nested cells come in runs that share a mask cell
-    if (maskCell === last || maskCell < 0 || maskCell >= side * side) {
+    const cell = cells[index] - faceStart;
+    if (cell < 0 || cell >= nside * nside) {
       continue;
     }
-    last = maskCell;
-    const { x, y } = decodeHealpixFaceXY(maskCell);
-    values[y * side + x] = 255;
+    const { x, y } = decodeHealpixFaceXY(cell);
+    values[(y - bbox.minY) * width + x - bbox.minX] = 255;
   }
-  return { side, values };
+  return {
+    width,
+    height,
+    values,
+    dataRect: {
+      u: bbox.minX / nside,
+      v: bbox.minY / nside,
+      width: width / nside,
+      height: height / nside,
+    } as THealpixDataRect,
+  };
 }
 
 export function getHealpixTextureIndex(pixel: number, nside: number) {
@@ -301,12 +319,17 @@ function buildDenseHealpixTexture(
   };
 }
 
-function getFaceCellBBox(cells: number[], faceOffset: number, faceEnd: number) {
+function getFaceCellBBox(
+  cells: ArrayLike<number>,
+  faceOffset: number,
+  faceEnd: number
+) {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   let maxX = -1;
   let maxY = -1;
-  for (const cell of cells) {
+  for (let index = 0; index < cells.length; index++) {
+    const cell = cells[index];
     if (cell < faceOffset || cell >= faceEnd) {
       continue;
     }

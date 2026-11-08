@@ -137,6 +137,8 @@ function makeProjectedTextureUniforms(texture: THREE.Texture) {
     // the level even where the level's values are missing.
     coverMask: { value: null },
     useCoverMask: { value: 0 },
+    coverUvOffset: { value: new THREE.Vector2(0, 0) },
+    coverUvScale: { value: new THREE.Vector2(1, 1) },
     // Projection uniforms
     projectionType: {
       value: PROJECTION_TYPE_BY_MODE[PROJECTION_TYPES.NEARSIDE_PERSPECTIVE],
