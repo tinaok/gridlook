@@ -163,6 +163,41 @@ export function decodeHealpixFaceXY(pixel: number) {
   return { x, y };
 }
 
+// The finest level the cover of a face (see healpixFaceCover) is kept at.
+const HEALPIX_COVER_MAX_LEVEL = 8;
+
+/**
+ * Where on one face a level has cells, whatever their values: a square mask
+ * of the face at level min(level, 8), 255 where a cell lies and 0 elsewhere,
+ * one row per face y. Without cells the level is dense and covers the face.
+ */
+export function healpixFaceCover(
+  faceIndex: number,
+  level: number,
+  cells?: ArrayLike<number>
+) {
+  if (!cells) {
+    return { side: 1, values: Uint8Array.of(255) };
+  }
+  const coverLevel = Math.min(level, HEALPIX_COVER_MAX_LEVEL);
+  const side = 2 ** coverLevel;
+  const values = new Uint8Array(side * side);
+  const faceStart = faceIndex * 4 ** level;
+  const cellsPerMaskCell = 4 ** (level - coverLevel);
+  let last = -1;
+  for (let index = 0; index < cells.length; index++) {
+    const maskCell = Math.floor((cells[index] - faceStart) / cellsPerMaskCell);
+    // nested cells come in runs that share a mask cell
+    if (maskCell === last || maskCell < 0 || maskCell >= side * side) {
+      continue;
+    }
+    last = maskCell;
+    const { x, y } = decodeHealpixFaceXY(maskCell);
+    values[y * side + x] = 255;
+  }
+  return { side, values };
+}
+
 export function getHealpixTextureIndex(pixel: number, nside: number) {
   const { x, y } = decodeHealpixFaceXY(pixel);
   return y * nside + x;

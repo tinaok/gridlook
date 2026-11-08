@@ -70,6 +70,7 @@ import {
   getHealpixFaceDataRect,
   getHealpixFaceRange,
   healpixCellCoordinateNames,
+  healpixFaceCover,
   type THealpixDataRect,
 } from "@/lib/grids/healpixCalculations.ts";
 import {
@@ -221,6 +222,10 @@ let backdropKey: string | undefined;
 const backdropMeshes: Array<THREE.Mesh | undefined> = new Array(
   HEALPIX_NUMCHUNKS
 );
+
+// Per face, where the level shown has cells (see healpixFaceCover); the
+// backdrop is drawn only outside it.
+let levelCovers: Array<THREE.DataTexture | undefined> = [];
 
 function drawnMeshes() {
   return [...backdropMeshes, ...mainMeshes];
@@ -1157,6 +1162,7 @@ async function processHealpixChunks(
   const histogramSummaries: THistogramSummary[] = [];
   const textures: THealpixTexture[] = [];
   const batches: THealpixBatch[] = [];
+  const covers: ReturnType<typeof healpixFaceCover>[] = [];
   const helper = projectionHelper.value;
   const options = {
     grid: {
@@ -1200,6 +1206,7 @@ async function processHealpixChunks(
       return;
     }
     const batch = await buildHealpixFace({ ...options, faceIndex, ...face });
+    covers.push(healpixFaceCover(faceIndex, grid.level, face.cells));
     const summary = batch.histogramSummary;
     histogramSummaries.push(summary);
     dataMin = dataMin > summary.min ? summary.min : dataMin;
@@ -1220,7 +1227,7 @@ async function processHealpixChunks(
       updateHealpixBatch(batch);
     }
   }
-  return { dataMin, dataMax, histogramSummaries, textures, batches };
+  return { dataMin, dataMax, histogramSummaries, textures, batches, covers };
 }
 
 /** Load the coarsest level at the selected slice, unless it is on screen. */
@@ -1278,6 +1285,38 @@ function showBackdrop(frame: TBackdropFrame | undefined) {
     disposeHealpixMesh(face, backdropMeshes);
   }
   wanted?.batches.forEach((batch) => updateHealpixBatch(batch, backdropMeshes));
+  maskBackdrop();
+}
+
+/** Keep the backdrop of each face out of where its level has cells. */
+function maskBackdrop() {
+  for (let face = 0; face < HEALPIX_NUMCHUNKS; face++) {
+    const mesh = backdropMeshes[face];
+    if (mesh) {
+      const uniforms = (mesh.material as THREE.ShaderMaterial).uniforms;
+      uniforms.coverMask.value = levelCovers[face] ?? null;
+      uniforms.useCoverMask.value = levelCovers[face] ? 1 : 0;
+    }
+  }
+}
+
+function setLevelCovers(covers: ReturnType<typeof healpixFaceCover>[]) {
+  levelCovers.forEach((texture) => texture?.dispose());
+  levelCovers = covers.map(({ side, values }) => {
+    const texture = new THREE.DataTexture(
+      values,
+      side,
+      side,
+      THREE.RedFormat,
+      THREE.UnsignedByteType
+    );
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+    texture.unpackAlignment = 1;
+    texture.needsUpdate = true;
+    return texture;
+  });
+  maskBackdrop();
 }
 
 // Reads the three channels face by face and draws them over the faces of the
@@ -1456,7 +1495,8 @@ async function fetchAndRenderData(
   if (!result) {
     return;
   }
-  const { dataMin, dataMax, histogramSummaries, textures, batches } = result;
+  const { dataMin, dataMax, histogramSummaries, textures, batches, covers } =
+    result;
 
   lastStreamlineContext = { indices, grid, cellCoord };
   lastDatavar = datavar;
@@ -1528,6 +1568,7 @@ async function fetchAndRenderData(
     } else {
       textures.forEach((texture) => updateHealpixTexture(texture));
     }
+    setLevelCovers(covers);
     setHoverLookup(healpixHoverLookup);
   };
   if (!isCurrent()) {
@@ -1570,6 +1611,7 @@ onBeforeUnmount(() => {
     disposeHealpixMesh(ipix);
     disposeHealpixMesh(ipix, backdropMeshes);
   }
+  levelCovers.forEach((texture) => texture?.dispose());
 });
 
 defineExpose({

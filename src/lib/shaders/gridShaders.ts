@@ -132,6 +132,11 @@ function makeProjectedTextureUniforms(texture: THREE.Texture) {
     // bounding box turns this on. Left off elsewhere so a texture's own
     // wrap mode (e.g. RepeatWrapping across the lon-wrap seam) still works.
     clipToDataRect: { value: 0 },
+    // Off unless this is the backdrop of a pyramid: a mask over the face
+    // (red > 0.5) of where its level has cells, which the backdrop leaves to
+    // the level even where the level's values are missing.
+    coverMask: { value: null },
+    useCoverMask: { value: 0 },
     // Projection uniforms
     projectionType: {
       value: PROJECTION_TYPE_BY_MODE[PROJECTION_TYPES.NEARSIDE_PERSPECTIVE],

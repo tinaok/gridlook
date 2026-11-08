@@ -6,6 +6,7 @@ import {
   getHealpixFaceRange,
   getHealpixTextureIndex,
   healpixCellCoordinateNames,
+  healpixFaceCover,
 } from "@/lib/grids/healpixCalculations.ts";
 import { buildHistogramSummary } from "@/utils/histogram.ts";
 
@@ -133,4 +134,29 @@ it("finds xdggs cell_ids when the dggs metadata names no coordinate", () => {
   expect(healpixCellCoordinateNames(undefined)).toEqual(["cell", "cell_ids"]);
   expect(healpixCellCoordinateNames(null)).toEqual(["cell", "cell_ids"]);
   expect(healpixCellCoordinateNames("zone_ids")).toEqual(["zone_ids"]);
+});
+
+it("covers the whole face of a dense level", () => {
+  expect(healpixFaceCover(3, 12)).toEqual({
+    side: 1,
+    values: Uint8Array.of(255),
+  });
+});
+
+it("covers the parts of a face a sparse level has cells in", () => {
+  // level 2 on face 1: cells 16..31; 17 and 18 are in the corner cell
+  // (x, y) = (1, 0) and (0, 1), 31 is (3, 3); NaN values still count
+  const { side, values } = healpixFaceCover(1, 2, [17, 18, 31]);
+  expect(side).toBe(4);
+  const covered = [...values.keys()].filter((index) => values[index] === 255);
+  expect(covered).toEqual([1, 4, 15]);
+});
+
+it("keeps the cover of a fine level at level 8", () => {
+  // level 10 on face 0: the 16 children of level-8 cell 9 = (x, y) (1, 2)
+  const cells = Array.from({ length: 16 }, (_, index) => 9 * 16 + index);
+  const { side, values } = healpixFaceCover(0, 10, cells);
+  expect(side).toBe(256);
+  const covered = [...values.keys()].filter((index) => values[index] === 255);
+  expect(covered).toEqual([2 * 256 + 1]);
 });
