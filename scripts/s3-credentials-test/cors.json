@@ -1,0 +1,1 @@
+{"CORSRules":[{"AllowedOrigins":["https://grid4earth.eu","http://localhost:5173","http://127.0.0.1:5173"],"AllowedMethods":["GET","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag","Content-Range","Content-Length","Accept-Ranges","Last-Modified"],"MaxAgeSeconds":3600}]}
